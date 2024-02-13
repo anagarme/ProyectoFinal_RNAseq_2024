@@ -48,6 +48,7 @@ rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-assigned", "cell_id_as
 rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-sorted", "cell_id_sorted", rse_gene_SRP192782$sra.sample_attributes)
 rse_gene_SRP192782$sra.sample_attributes <- gsub("mouse-id", "mouse_id", rse_gene_SRP192782$sra.sample_attributes)
 
+
 ## Verificar que los atributos no generen algún problema
 rse_gene_SRP192782$sra.sample_attributes [1]
 ## Hacer la información más fácil de usar
@@ -59,6 +60,7 @@ rse_gene_SRP192782$sra_attribute.cell_id_assigned <- factor(rse_gene_SRP192782$s
 rse_gene_SRP192782$sra_attribute.cell_id_sorted <- factor(rse_gene_SRP192782$sra_attribute.cell_id_sorted)
 rse_gene_SRP192782$sra_attribute.source_name <- factor(rse_gene_SRP192782$sra_attribute.source_name)
 rse_gene_SRP192782$sra_attribute.tissue <- factor(rse_gene_SRP192782$sra_attribute.tissue)
+rse_gene_SRP192782$sra_attribute.mouse_id <- factor(rse_gene_SRP192782$sra_attribute.mouse_id)
 ## Resumen de las variables de interés
 summary(as.data.frame(colData(rse_gene_SRP192782)[ ,grepl("^sra_attribute.[cell_id_assigned|cell_id_sorted|tissue]", colnames(colData(rse_gene_SRP192782)))]))
 #
@@ -137,27 +139,28 @@ de_results <- topTable(
 )
 dim(de_results)
 
-## Genes diferencialmente expresados entre pre y post natal con FDR < 5%
-table(de_results$adj.P.Val < 0.05)
 
 ## Visualicemos los resultados estadísticos
 plotMA(eb_results, coef = 2)
 
 volcanoplot(eb_results, coef = 2, highlight = 3, names = de_results$gene_name)
+volcanoplot(eb_results, coef = 4, highlight = 5, names = de_results$gene_name, col = "cornflowerblue", hl.col="darkorange")
 
-de_results[de_results$gene_name %in% c("ZSCAN2", "VASH2", "KIAA0922"), ]
+de_results[de_results$gene_name %in% c("Xist", "Foxp3", "Klrk1","Ctla4","Flicr"), ]
 ## --------------------- VISUALIZACIÓN  --------------------
 ## ------------------------------------------------------------
-#### Extraer valores de los genes de interés
-exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 50, ]
+
 
 ## Creemos una tabla con información de las muestras
 ## y con nombres de columnas más amigables
-df <- as.data.frame(colData(rse_gene_SRP045638)[, c("prenatal", "sra_attribute.RIN", "sra_attribute.sex")])
-colnames(df) <- c("AgeGroup", "RIN", "Sex")
+
+exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 50, ]
+
+df <- as.data.frame(colData(rse_gene_SRP192782)[, c("sra_attribute.cell_id_assigned", "sra_attribute.tissue", "sra_attribute.cell_id_sorted")])
+colnames(df) <- c("Name", "Tissue", "T Cells")
 
 ## Hagamos un heatmap
-library("pheatmap")
+
 pheatmap(
   exprs_heatmap,
   cluster_rows = TRUE,
@@ -166,33 +169,7 @@ pheatmap(
   show_colnames = FALSE,
   annotation_col = df
 )
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
-##
+
 ##
 ##
 ##
