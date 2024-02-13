@@ -7,16 +7,18 @@
 ##
 ##
 ##
-## -------------------- Librerías/Paquetes --------------------
-## Cargar las librerías
+## -------------------- PAQUETES ------------------------------
+## ------------------------------------------------------------
+## Cargar los paquetes necesarios
 suppressPackageStartupMessages(library(recount3))
 suppressPackageStartupMessages(library(sessioninfo))
-library(edgeR)
+suppressPackageStartupMessages(library(edgeR))
 library(limma)
 library(ggplot2)
 library(pheatmap)
 ##
-## -------------------- Descargar datos --------------------
+## -------------------- DESCARGAR LOS DATOS --------------------
+## -------------------------------------------------------------
 ##
 ## Descargar los datos de RNA-seq del estudio de interés
 rse_gene_SRP192782 <- create_rse_manual(
@@ -26,36 +28,144 @@ rse_gene_SRP192782 <- create_rse_manual(
   annotation = "gencode_v23",
   type = "gene"
 )
+# Explorar el objeto RSE
+rse_gene_SRP192782
 ## Explorar los metadatos del objeto RSE SRP192782
-metadata_SRP192782 <- metadata(rse_gene_SRP192782)
-##
-## -------------------- Pre procesamiento de los datos  --------------------
+metadata(rse_gene_SRP192782)
 
+## ---------------- PROCESAMIENTO DE LOS DATOS ----------------
+## ------------------------------------------------------------
+
+## FORMATEAR LOS DATOS
 ## Convertir las cuentas por nucleótido a cuentas por lectura
 assay(rse_gene_SRP192782, "counts") <- compute_read_counts(rse_gene_SRP192782)
-## Reemplazar guiones cortos que podrían ocasionar problemas en varios atributos
+
+## Mostrar los atributos del objeto
 rse_gene_SRP192782$sra.sample_attributes[1:5]
+
+## Reemplazar guiones cortos que podrían ocasionar problemas en varios atributos
 rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-assigned", "cell_id_assigned", rse_gene_SRP192782$sra.sample_attributes)
 rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-sorted", "cell_id_sorted", rse_gene_SRP192782$sra.sample_attributes)
 rse_gene_SRP192782$sra.sample_attributes <- gsub("mouse-id", "mouse_id", rse_gene_SRP192782$sra.sample_attributes)
-##
-## Expandir los atributos SRA para facilitar el manejo de la información
-rse_gene_SRP192782 <- expand_sra_attributes(rse_gene_SRP192782)
-# Verificar que los atributes no generen algún problema
-rse_gene_SRP192782$sra.sample_attributes [1]
-colData(rse_gene_SRP192782)[,grepl("^sra_attribute", colnames(colData(rse_gene_SRP192782)))]
-##
-## Cambiar el tipo de character a numeric o factor
-rse_gene_SRP192782$sra_attribute.cell_id_assigned <- as.numeric(rse_gene_SRP192782$sra_attribute.cell_id_assigned)
-rse_gene_SRP192782$sra_attribute. <- as.numeric(rse_gene_SRP192782$sra_attribute.)
 
-##
-##
-##
-##
-##
-##
-##
+## Verificar que los atributos no generen algún problema
+rse_gene_SRP192782$sra.sample_attributes [1]
+## Hacer la información más fácil de usar
+rse_gene_SRP192782 <- expand_sra_attributes(rse_gene_SRP192782)
+colData(rse_gene_SRP192782)[,grepl("^sra_attribute", colnames(colData(rse_gene_SRP192782)))]
+
+## Cambiar el tipo de character a factor para los análisis estadísticos
+rse_gene_SRP192782$sra_attribute.cell_id_assigned <- factor(rse_gene_SRP192782$sra_attribute.cell_id_assigned)
+rse_gene_SRP192782$sra_attribute.cell_id_sorted <- factor(rse_gene_SRP192782$sra_attribute.cell_id_sorted)
+rse_gene_SRP192782$sra_attribute.source_name <- factor(rse_gene_SRP192782$sra_attribute.source_name)
+rse_gene_SRP192782$sra_attribute.tissue <- factor(rse_gene_SRP192782$sra_attribute.tissue)
+## Resumen de las variables de interés
+summary(as.data.frame(colData(rse_gene_SRP192782)[ ,grepl("^sra_attribute.[cell_id_assigned|cell_id_sorted|tissue]", colnames(colData(rse_gene_SRP192782)))]))
+#
+
+## --------------------- FILTRAR LOS DATOS --------------------
+## ------------------------------------------------------------
+## Proporción de lecturas asignadas a genes
+rse_gene_SRP192782$assigned_gene_prop <- rse_gene_SRP192782$recount_qc.gene_fc_count_all.assigned / rse_gene_SRP192782$recount_qc.gene_fc_count_all.total
+summary(rse_gene_SRP192782$assigned_gene_prop)
+
+# Resumen por grupo de tejido
+with(colData(rse_gene_SRP192782), tapply(assigned_gene_prop, sra_attribute.tissue, summary))
+
+## Eliminar muestras de baja calidad y genes con niveles de expresión muy bajos
+## Copia de seguridad
+rse_gene_SRP192782_unfiltered <- rse_gene_SRP192782
+
+## Histograma
+hist(rse_gene_SRP192782$assigned_gene_prop, col="plum2")
+abline(v=0.35,col="steelblue", lwd=7, lty = "dashed")
+## Eliminar las muestras con una proporción baja.
+table(rse_gene_SRP192782$assigned_gene_prop < 0.35)
+# Eliminar los genes con proporciones bajas.
+rse_gene_SRP192782 <- rse_gene_SRP192782[, rse_gene_SRP192782$assigned_gene_prop > 0.35]
+
+# Eliminar genes con niveles bajos de expresión
+gene_means <- rowMeans(assay(rse_gene_SRP192782, "counts"))
+summary(gene_means)
+rse_gene_SRP192782 <- rse_gene_SRP192782[gene_means > 0.01, ]
+dim(rse_gene_SRP192782)
+
+## Porcentaje de genes que retuvimos
+round(nrow(rse_gene_SRP192782) / nrow(rse_gene_SRP192782_unfiltered) * 100, 2)
+
+## --------------------- NORMALIZACIÓN  --------------------
+## ------------------------------------------------------------
+dge <- DGEList(
+  counts = assay(rse_gene_SRP192782, "counts"),
+  genes = rowData(rse_gene_SRP192782)
+)
+dge <- calcNormFactors(dge)
+
+## --------------------- EXPRESIÓN DIFERENCIAL  ---------------
+## ------------------------------------------------------------
+
+## Tejido
+ggplot(as.data.frame(colData(rse_gene_SRP192782)), aes(y = assigned_gene_prop, x = sra_attribute.tissue)) +
+  geom_boxplot() +
+  theme_classic(base_size = 20) +
+  ylab("Assigned Gene Prop") +
+  xlab("Tissue group")
+
+## Células T
+ggplot(as.data.frame(colData(rse_gene_SRP192782)), aes(y = assigned_gene_prop, x = sra_attribute.cell_id_sorted)) +
+  geom_boxplot() +
+  theme_classic(base_size = 20) +
+  ylab("Assigned Gene Prop") +
+  xlab("T cells group")
+
+## --------------------- Modelo estadístico  ---------------
+## ------------------------------------------------------------
+mod<- model.matrix(~ 0 + sra_attribute.tissue+ sra_attribute.cell_id_sorted + assigned_gene_prop,
+                    data = colData(rse_gene_SRP192782)
+)
+colnames(mod)
+
+vGene <- voom(dge, mod, plot = TRUE)
+
+eb_results <- eBayes(lmFit(vGene))
+
+de_results <- topTable(
+  eb_results,
+  coef = 2,
+  number = nrow(rse_gene_SRP192782),
+  sort.by = "none"
+)
+dim(de_results)
+
+## Genes diferencialmente expresados entre pre y post natal con FDR < 5%
+table(de_results$adj.P.Val < 0.05)
+
+## Visualicemos los resultados estadísticos
+plotMA(eb_results, coef = 2)
+
+volcanoplot(eb_results, coef = 2, highlight = 3, names = de_results$gene_name)
+
+de_results[de_results$gene_name %in% c("ZSCAN2", "VASH2", "KIAA0922"), ]
+## --------------------- VISUALIZACIÓN  --------------------
+## ------------------------------------------------------------
+#### Extraer valores de los genes de interés
+exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 50, ]
+
+## Creemos una tabla con información de las muestras
+## y con nombres de columnas más amigables
+df <- as.data.frame(colData(rse_gene_SRP045638)[, c("prenatal", "sra_attribute.RIN", "sra_attribute.sex")])
+colnames(df) <- c("AgeGroup", "RIN", "Sex")
+
+## Hagamos un heatmap
+library("pheatmap")
+pheatmap(
+  exprs_heatmap,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  annotation_col = df
+)
 ##
 ##
 ##
