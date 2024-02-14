@@ -5,7 +5,7 @@
 assay(rse_gene_SRP192782, "counts") <- compute_read_counts(rse_gene_SRP192782)
 
 ## Mostrar los atributos del objeto
-rse_gene_SRP192782$sra.sample_attributes[1:5]
+rse_gene_SRP192782$sra.sample_attributes[1:3]
 
 ## Reemplazar guiones cortos que podrían ocasionar problemas en varios atributos
 rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-assigned", "cell_id_assigned", rse_gene_SRP192782$sra.sample_attributes)
@@ -22,7 +22,6 @@ colData(rse_gene_SRP192782)[,grepl("^sra_attribute", colnames(colData(rse_gene_S
 ## Cambiar el tipo de character a factor para los análisis estadísticos
 rse_gene_SRP192782$sra_attribute.cell_id_assigned <- factor(rse_gene_SRP192782$sra_attribute.cell_id_assigned)
 rse_gene_SRP192782$sra_attribute.cell_id_sorted <- factor(rse_gene_SRP192782$sra_attribute.cell_id_sorted)
-rse_gene_SRP192782$sra_attribute.source_name <- factor(rse_gene_SRP192782$sra_attribute.source_name)
 rse_gene_SRP192782$sra_attribute.tissue <- factor(rse_gene_SRP192782$sra_attribute.tissue)
 rse_gene_SRP192782$sra_attribute.mouse_id <- factor(rse_gene_SRP192782$sra_attribute.mouse_id)
 ## Resumen de las variables de interés

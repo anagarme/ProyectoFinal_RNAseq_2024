@@ -12,11 +12,11 @@ with(colData(rse_gene_SRP192782), tapply(assigned_gene_prop, sra_attribute.tissu
 rse_gene_SRP192782_unfiltered <- rse_gene_SRP192782
 ## Histograma
 hist(rse_gene_SRP192782$assigned_gene_prop, col="plum2")
-abline(v=0.35,col="steelblue", lwd=7, lty = "dashed")
+abline(v=0.4,col="steelblue", lwd=7, lty = "dashed")
 ## Eliminar las muestras con una proporción baja
-table(rse_gene_SRP192782$assigned_gene_prop < 0.35)
+table(rse_gene_SRP192782$assigned_gene_prop < 0.4)
 ## Eliminar los genes con proporciones bajas con base al histograma
-rse_gene_SRP192782 <- rse_gene_SRP192782[, rse_gene_SRP192782$assigned_gene_prop > 0.35]
+rse_gene_SRP192782 <- rse_gene_SRP192782[, rse_gene_SRP192782$assigned_gene_prop > 0.4]
 
 ## Eliminar genes con niveles bajos de expresión
 gene_means <- rowMeans(assay(rse_gene_SRP192782, "counts"))
