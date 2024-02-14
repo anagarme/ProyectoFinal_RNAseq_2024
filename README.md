@@ -70,6 +70,7 @@ rse_gene_SRP192782$sra_attribute.tissue <- factor(rse_gene_SRP192782$sra_attribu
 rse_gene_SRP192782$sra_attribute.mouse_id <- factor(rse_gene_SRP192782$sra_attribute.mouse_id)
 ```
 ### Filtrado de datos
+### Filtrado de datos
 Una vez que los datos tienen el tipo de formato adecuado, se procede a descartar aquellos datos que no tengan una buena calidad o aquellos que su nivel de expresión no se significativo, 
 esto a través del script [04-filtrar_datos.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/86754e6acade9922268ecfe9e494c57669c3396f/R/04-filtrar_datos.R). 
 
@@ -86,8 +87,34 @@ rse_gene_SRP192782_unfiltered <- rse_gene_SRP192782
 hist(rse_gene_SRP192782$assigned_gene_prop, col="plum2")
 abline(v=0.35,col="steelblue", lwd=7, lty = "dashed")
 ```
-![](/histogram_assigned_gene_prop.png) 
-Al observar dicho histograma nos permite elegir un valor de corte.
+![](plots/histogram_assigned_gene_prop.png) 
+
+
+Al observar dicho histograma nos permite elegir un valor de corte. En este caso 0.4, el cual se utiliza para eliminar las muestras con una proporción menor. 
+```
+table(rse_gene_SRP192782$assigned_gene_prop < 0.4)
+## Eliminar los genes con proporciones bajas con base al histograma
+rse_gene_SRP192782 <- rse_gene_SRP192782[, rse_gene_SRP192782$assigned_gene_prop > 0.4]
+```
+Posteriormene calcula los niveles medios de expresión de los genes en las muestras y elimina los genes con niveles muy bajos.
+```
+## Eliminar genes con niveles bajos de expresión
+gene_means <- rowMeans(assay(rse_gene_SRP192782, "counts"))
+summary(gene_means)
+rse_gene_SRP192782 <- rse_gene_SRP192782[gene_means > 0.01, ]
+```
+
+Por último, se calcula el porcentaje de genes filtrados.
+```
+round(nrow(rse_gene_SRP192782) / nrow(rse_gene_SRP192782_unfiltered) * 100, 2)
+[1] 56.59
+```
+Lo que significa que se conservó 56.59% de los genes. Es decir, las dimensiones originales del objeto fueron y ahora se tiene 31,361 genes y 2703 muestras.
+
+### Normalización
+Además, con el script [05-normalizacion.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/247b79c1e9a1a96188ea51860ac5c32dab675e08/R/05-normalizacion.R) se normalizaron los datos con el paquete `edgeR` con la finalidad de reducir la indicendia de falsos positivos y para que todos tengan la misma escala.
+
+### Expresión diferencial
 
 
 
