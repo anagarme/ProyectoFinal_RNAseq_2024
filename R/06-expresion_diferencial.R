@@ -37,8 +37,6 @@ dim(de_results)
 
 ## Para visualizar los resultados estadísticos
 plotMA(eb_results, coef = 2)
-
-volcanoplot(eb_results, coef = 2, highlight = 3, names = de_results$gene_name)
 volcanoplot(eb_results, coef = 4, highlight = 5, names = de_results$gene_name, col = "cornflowerblue", hl.col="darkorange")
 
 de_results[de_results$gene_name %in% c("Xist", "Foxp3", "Klrk1","Ctla4","Flicr"), ]

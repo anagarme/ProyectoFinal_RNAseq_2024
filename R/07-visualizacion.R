@@ -2,10 +2,8 @@
 ## ------------------------------------------------------------
 
 
-## Creemos una tabla con información de las muestras
-## y con nombres de columnas más amigables
-
-exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 30, ]
+## Extraer los 50 genes con mayor expresión diferencial
+exprs_heatmap <- vGene$E[rank(de_results$adj.P.Val) <= 50, ]
 ## Crear un data frame con la información de las muestras
 df <- as.data.frame(colData(rse_gene_SRP192782)[, c("sra_attribute.cell_id_assigned", "sra_attribute.tissue", "sra_attribute.cell_id_sorted")])
 colnames(df) <- c("Cell id", "Tissue", "T Cells")
