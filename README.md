@@ -109,23 +109,53 @@ Por último, se calcula el porcentaje de genes filtrados.
 round(nrow(rse_gene_SRP192782) / nrow(rse_gene_SRP192782_unfiltered) * 100, 2)
 [1] 56.59
 ```
-Lo que significa que se conservó 56.59% de los genes. Es decir, las dimensiones originales del objeto fueron y ahora se tiene 31,361 genes y 2703 muestras.
+Lo que significa que se conservó 56.59% de los genes. Es decir, las dimensiones originales del objeto fueron 55,421 genes y 2,942 muestras y ahora se tiene 31,361 genes y 2703 muestras.
 
 ### Normalización
 Además, con el script [05-normalizacion.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/247b79c1e9a1a96188ea51860ac5c32dab675e08/R/05-normalizacion.R) se normalizaron los datos con el paquete `edgeR` con la finalidad de reducir la indicendia de falsos positivos y para que todos tengan la misma escala.
 
 ### Expresión diferencial
+Adicionalmente, la finalidad del script [06-expresion_diferencial.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/d4b71a22c8e630d6003b0350f50cdb8d467ed29d/R/06-expresion_diferencial.R) es la visualización de los datos mediante gráficos comos _boxplots_ para analizar la diferencia en la expresión génica de las muestras en distintas
+variables. Observamos que no hay diferencia significativa entre los grupos de tejidos. No obstante, en el grupo de células T reguladoras (_Treg_) se nota que la expresión de genes es 
+mayor que en los otros tipos de células T.
+```
+## Boxplot por grupo de tejido
+ggplot(as.data.frame(colData(rse_gene_SRP192782)), aes(y = assigned_gene_prop, x = sra_attribute.tissue)) +
+  geom_boxplot() +
+  theme_classic(base_size = 20) +
+  ylab("Assigned Gene Prop") +
+  xlab("Tissue group")
+```
+![](plots/BoxplotTissue.png) 
+```
+## Boxplot por grupo de células T
+ggplot(as.data.frame(colData(rse_gene_SRP192782)), aes(y = assigned_gene_prop, x = sra_attribute.cell_id_sorted)) +
+  geom_boxplot() +
+  theme_classic(base_size = 20) +
+  ylab("Assigned Gene Prop") +
+  xlab("T cells group")
+```
+![](plots/BoxplotTcells.png) 
+
+Asimismo, el script permite crear un modelo estadístico con base en las variables antes mencionadas. Dicho modelo convierte las cuentas de las lecturas por millón a logaritmo base 2(_log2_)
+de las cuentas por millón.
+```
+mod<- model.matrix(~ 0 + sra_attribute.tissue+ sra_attribute.cell_id_sorted + assigned_gene_prop,
+                   data = colData(rse_gene_SRP192782)
+)
+```
+A continuación, se estima la relación-varianza promedio de los datos mediante la función `voom` .
+```
+vGene <- voom(dge, mod, plot = TRUE)
+```
+También se visualizan los datos estadísticos 
+Luego, la función de eBayes se utiliza para calcular estadísticas bayesianas para el análisis de expresión diferencial. Este paso es crucial para identificar genes que muestran una expresión diferencial significativa entre diferentes condiciones o puntos temporales.
+![](plots/voom.png)
+![](plots/tissuevoom.png)
+![](plots/volcano.png)
+![](plots/heatmap.png)
 
 
 
-
-
-
-
-
-
-
-
-
-
-![](/results/aa_count_plot_SARS_CoV_2_human_CHE_SARS_CoV_2.png) # Para impag
+### Referencias 
+Li A, Herbst RH, Canner D, Schenkel JM, Smith OC, Kim JY, Hillman M, Bhutkar A, Cuoco MS, Rappazzo CG, Rogers P, Dang C, Jerby-Arnon L, Rozenblatt-Rosen O, Cong L, Birnbaum M, Regev A, Jacks T. IL-33 Signaling Alters Regulatory T Cell Diversity in Support of Tumor Development. Cell Rep. 2019 Dec 3;29(10):2998-3008.e8. doi: 10.1016/j.celrep.2019.10.120. PMID: 31801068; PMCID: PMC6990979.
