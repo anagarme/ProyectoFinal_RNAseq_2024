@@ -19,10 +19,10 @@ critical role in Treg-mediated immunosuppression in cancer, highlighting potenti
 ## Metodología 
 Para realizar el siguiente análisis es fundamental correr los sripts contenidos en la carpeta [R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/tree/01f15f3fa0ef73dc2723b17332ab8acb0410caea/R) de manera secuencial.
 ### Librerías
-En el primero de los scripts, [R/01-librerias.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/01f15f3fa0ef73dc2723b17332ab8acb0410caea/R/01-librerias.R), se encuentran las librerías necesarias para la descarga, manipulación, análisis y visualización de los datos.
+En el primero de los scripts, [01-librerias.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/01f15f3fa0ef73dc2723b17332ab8acb0410caea/R/01-librerias.R), se encuentran las librerías necesarias para la descarga, manipulación, análisis y visualización de los datos.
 ### Descargar datos
 Posteriormente, el script [02-descargar_datos.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/01f15f3fa0ef73dc2723b17332ab8acb0410caea/R/02-descargar_datos.R) descarga los datos de RNA-seq del estudio
-de interés a través del paquete 'recount3'. Los cuales se guardan en el objeto _rse_gene_SRP192782_. 
+de interés a través del paquete _recount3_. Los cuales se guardan en el objeto _rse_gene_SRP192782_. 
 ```
 rse_gene_SRP192782 <- create_rse_manual(
   project = "SRP192782",
@@ -56,7 +56,7 @@ rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-assigned", "cell_id_as
 rse_gene_SRP192782$sra.sample_attributes <- gsub("cell-id-sorted", "cell_id_sorted", rse_gene_SRP192782$sra.sample_attributes)
 rse_gene_SRP192782$sra.sample_attributes <- gsub("mouse-id", "mouse_id", rse_gene_SRP192782$sra.sample_attributes)
 ```
-Por otro lado, con la función `expand_sra_attributes()` se expanden y separa los atributos, los cuales se incorporan a un _data frame_.
+Por otro lado, con la función `expand_sra_attributes()` se expanden y separan los atributos, los cuales se incorporan a un _data frame_.
 El script también sirve para cambiar el tipo de dato, de _character_ a _factor_, con la finalidad de facilitar los análisis estadísticos.
 ```
 rse_gene_SRP192782 <- expand_sra_attributes(rse_gene_SRP192782)
@@ -69,7 +69,7 @@ rse_gene_SRP192782$sra_attribute.source_name <- factor(rse_gene_SRP192782$sra_at
 rse_gene_SRP192782$sra_attribute.tissue <- factor(rse_gene_SRP192782$sra_attribute.tissue)
 rse_gene_SRP192782$sra_attribute.mouse_id <- factor(rse_gene_SRP192782$sra_attribute.mouse_id)
 ```
-### Filtrado de datos
+
 ### Filtrado de datos
 Una vez que los datos tienen el tipo de formato adecuado, se procede a descartar aquellos datos que no tengan una buena calidad o aquellos que su nivel de expresión no se significativo, 
 esto a través del script [04-filtrar_datos.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/86754e6acade9922268ecfe9e494c57669c3396f/R/04-filtrar_datos.R). 
@@ -137,22 +137,42 @@ ggplot(as.data.frame(colData(rse_gene_SRP192782)), aes(y = assigned_gene_prop, x
 ```
 ![](plots/BoxplotTcells.png) 
 
-Asimismo, el script permite crear un modelo estadístico con base en las variables antes mencionadas. Dicho modelo convierte las cuentas de las lecturas por millón a logaritmo base 2(_log2_)
+Asimismo, el script permite crear un modelo estadístico con base en las variables antes mencionadas. Dicho modelo convierte las cuentas de las lecturas por millón a logaritmo base 2 (_log2_)
 de las cuentas por millón.
 ```
 mod<- model.matrix(~ 0 + sra_attribute.tissue+ sra_attribute.cell_id_sorted + assigned_gene_prop,
                    data = colData(rse_gene_SRP192782)
 )
 ```
-A continuación, se estima la relación-varianza promedio de los datos mediante la función `voom` .
+A continuación, se estima la relación-varianza promedio de los datos mediante la función `voom` del paquete `limma`.
 ```
 vGene <- voom(dge, mod, plot = TRUE)
 ```
-También se visualizan los datos estadísticos 
-Luego, la función de eBayes se utiliza para calcular estadísticas bayesianas para el análisis de expresión diferencial. Este paso es crucial para identificar genes que muestran una expresión diferencial significativa entre diferentes condiciones o puntos temporales.
 ![](plots/voom.png)
+
+Se ajustan los datos a la variable _tissue_. Este paso es crucial para identificar genes que muestran una expresión diferencial significativa entre diferentes condiciones.
+
+```
+eb_results <- eBayes(lmFit(vGene))
+
+de_results <- topTable(
+  eb_results,
+  coef = 2,
+  number = nrow(rse_gene_SRP192782),
+  sort.by = "none"
+)
+```
 ![](plots/tissuevoom.png)
+
+Subsecuentemente se realiza un _volcano plot_ para observar los genes más diferencialmente expresados.
+```
+volcanoplot(eb_results, coef = 4, highlight = 5, names = de_results$gene_name, col = "cornflowerblue", hl.col="darkorange")
+```
 ![](plots/volcano.png)
+Con base al _volcano plot_ se observan los cinco genes con mayor expresión diferencial: Xist, Foxp3, Klrk1, Ctla4 y Flicr. Profundizando en **Foxp3** ya que es uno de los genes más expresados, se encontró que es un factor regulador de la transcripción, que participa directamente en la función de las células reguladoras T CD4+ humanas y murinas. Lo cual hace sentido puesto que es un modelo murino con adenocarcinoma pulmonar. 
+
+###  Visualización 
+Por último, el script [07-visualizacion.R](https://github.com/anagarme/ProyectoFinal_RNAseq_2024/blob/78761415c1a4c75370a8f6e6d43de62496aba442/R/07-visualizacion.R) permite visualizar los 50 genes con mayor expresión diferencial.
 ![](plots/heatmap.png)
 
 
